@@ -6,7 +6,10 @@ export { sql, eq, and, or, desc } from 'drizzle-orm';
 
 export const tables = schema;
 
-const sqlite = new Database('sqlite.db');
+const isDev = process.env.NODE_ENV === 'development';
+const dbPath = isDev ? 'sqlite.db' : '/tmp/db.sqlite';
+
+const sqlite = new Database(dbPath);
 export function useDB() {
   return drizzle(sqlite, { schema });
 }
