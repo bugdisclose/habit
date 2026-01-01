@@ -3013,15 +3013,15 @@ _sE4A4Qqj588hOgPDZCLDjGZAcgD9tmx3NNgSEH5073s
 const assets = {
   "/index.mjs": {
     "type": "text/javascript; charset=utf-8",
-    "etag": "\"2b6a0-tzQWgV50gpBkWnyDu5yuVq3aYyg\"",
-    "mtime": "2026-01-01T17:38:11.639Z",
+    "etag": "\"2b6a0-QjJ932eCYeCmA06MYy6DQn+uNCk\"",
+    "mtime": "2026-01-01T17:38:13.481Z",
     "size": 177824,
     "path": "index.mjs"
   },
   "/index.mjs.map": {
     "type": "application/json",
     "etag": "\"a0fda-dC4K1+1e2y8R14XyuulnpQLzPow\"",
-    "mtime": "2026-01-01T17:38:11.639Z",
+    "mtime": "2026-01-01T17:38:13.481Z",
     "size": 659418,
     "path": "index.mjs.map"
   }
@@ -4068,7 +4068,7 @@ const share_post$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProper
 const index_get$2 = eventHandler(async (event) => {
   const { user } = await requireUserSession(event);
   const habits = await useDB().select().from(tables.habits).where(eq(tables.habits.userId, String(user.id))).all();
-  const journals = await useDB().select().from(tables.habitJournals).where(inArray(tables.habitJournals.habitId, habits.map((h) => h.id))).all();
+  const journals = habits.length > 0 ? await useDB().select().from(tables.habitJournals).where(inArray(tables.habitJournals.habitId, habits.map((h) => h.id))).all() : [];
   const result = habits.map((habit) => ({
     ...habit,
     journals: journals.filter((j) => j.habitId === habit.id)

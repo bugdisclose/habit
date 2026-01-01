@@ -370,7 +370,6 @@ const confirmCompletion = async (withNote: boolean) => {
         </div>
       </UCard>
     </UModal>
-    </UModal>
   </UModal>
 
   <UModal v-model="openJournalModal" :ui="{ width: 'w-full max-w-sm', rounded: 'rounded-2xl', background: 'bg-neutral-900', overlay: { background: 'backdrop-blur-sm bg-black/50' } }">
