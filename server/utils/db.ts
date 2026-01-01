@@ -6,33 +6,30 @@ export { sql, eq, and, or, desc } from 'drizzle-orm';
 
 export const tables = schema;
 
-const isDev = process.env.NODE_ENV === 'development';
-const dbPath = isDev ? 'sqlite.db' : '/tmp/db.sqlite';
+let _db: ReturnType<typeof drizzle> | null = null;
+let _sqliteSession: Database.Database | null = null;
 
-const sqlite = new Database(dbPath);
 export function useDB() {
-  const db = drizzle(sqlite, { schema });
+  if (_db) return _db;
 
-  // Auto-migrate in production (Vercel)
-  if (!isDev) {
-    const tableCheck = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get();
-    if (!tableCheck) {
-      console.log('Initialize DB: Running migrations...');
-      // We rely on the fact that we bundled migrations as server assets
-      // But for simplicity in this synchronous context, we can try to assume 
-      // specific CREATE TABLE statements if we want to be 100% sure,
-      // OR we can rely on standard sql execution if we can read the files.
-      // 
-      // Since `useStorage` is async and `useDB` is synchronous/cached, 
-      // we'll run a minimal schema init if tables are missing.
-      // 
-      // However, reading 4 SQL files synchronously from assets is hard.
-      // Let's use the Drizzle Migrator if we can resolve the path.
-      // 
-      // FALLBACK: Execute the schema directly for the critical 'users' table 
-      // and others to unblock login.
+  try {
+    const isDev = process.env.NODE_ENV === 'development';
+    const dbPath = isDev ? 'sqlite.db' : '/tmp/db.sqlite';
 
-      sqlite.exec(`
+    if (!_sqliteSession) {
+      console.log(`[db] Initializing database at ${dbPath}`);
+      _sqliteSession = new Database(dbPath); // Lazy open
+    }
+
+    const sqlite = _sqliteSession;
+    const db = drizzle(sqlite, { schema });
+
+    // Auto-migrate in production (Vercel)
+    if (!isDev) {
+      const tableCheck = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get();
+      if (!tableCheck) {
+        console.log('[db] Empty database detected. Running migrations...');
+        sqlite.exec(`
           CREATE TABLE IF NOT EXISTS habits (
             id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
             user_id text NOT NULL,
@@ -90,21 +87,32 @@ export function useDB() {
             created_at integer
           );
         `);
-      console.log('[db] Schema initialized successfully.');
+        console.log('[db] Schema initialized successfully.');
+      } else {
+        // Hotfix for existing tables: check if user_view column exists
+        try {
+          // We can't easily check columns in sqlite without PRAGMA, but simpler to just try-catch ADD COLUMN
+          // or we can rely on application-level checks. 
+          // For simplicity in this hotfix script:
+          sqlite.exec("ALTER TABLE users ADD COLUMN user_view integer DEFAULT 0");
+          console.log('[db] Applied hotfix: Added user_view column.');
+        } catch (e) {
+          // Ignore: column exists
+        }
+      }
     }
 
-    // Hotfix for existing tables in warm containers
-    try {
-      sqlite.exec("ALTER TABLE users ADD COLUMN user_view integer DEFAULT 0");
-      console.log('[db] Applied hotfix: Added user_view column.');
-    } catch (e) {
-      // Ignore error if column already exists
-    }
-    console.log('Initialize DB: Schema applied.');
+    _db = db;
+    return _db;
+
+  } catch (error: any) {
+    console.error('[db] Initialization Failed:', error);
+    // Throwing here allows the API handler to catch it (if wrapped) or 500 with stack
+    throw createError({
+      statusCode: 500,
+      statusMessage: `Database Error: ${error.message}`
+    });
   }
-}
-
-return db;
 }
 
 export type Habit = typeof tables.habits.$inferSelect;
