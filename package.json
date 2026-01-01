@@ -64,6 +64,9 @@
     "wrangler": "^4.43.0",
     "drizzle-kit": "^0.31.5"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "better-sqlite3",
