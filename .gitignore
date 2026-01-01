@@ -1,4 +1,19 @@
+# Nuxt dev/build outputs
+.output
+.nuxt
 .data
-.env
+dist
 
+# Node dependencies
 node_modules
+*.log
+
+# System files
+.DS_Store
+.updated
+
+# Environment variables
+.env
+.env.*
+!.env.example
+

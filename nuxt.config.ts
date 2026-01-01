@@ -15,4 +15,9 @@ export default defineNuxtConfig({
       version: pkg.version,
     },
   },
+  nitro: {
+    alias: {
+      'node:path': 'pathe',
+    },
+  },
 });

@@ -166,7 +166,8 @@ const confirmCompletion = async (withNote: boolean) => {
 </script>
 
 <template>
-  <ContentBox class="mx-4 mb-4 flex cursor-pointer gap-3 bg-neutral-400/5 p-3 transition hover:bg-white/5 active:scale-[.975]" @click="openHabitModal = true">
+  <div>
+    <ContentBox class="mx-4 mb-4 flex cursor-pointer gap-3 bg-neutral-400/5 p-3 transition hover:bg-white/5 active:scale-[.975]" @click="openHabitModal = true">
     <div class="flex flex-1 flex-col justify-center gap-1">
       <div class="flex items-center justify-between">
         <div class="text-md line-clamp-1 font-medium text-white">{{ habit.title }}</div>
@@ -391,4 +392,5 @@ const confirmCompletion = async (withNote: boolean) => {
       </div>
     </div>
   </UModal>
+  </div>
 </template>
