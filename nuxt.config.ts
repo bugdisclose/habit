@@ -13,4 +13,10 @@ export default defineNuxtConfig({
       version: pkg.version,
     },
   },
+  nitro: {
+    serverAssets: [{
+      baseName: 'migrations',
+      dir: './server/database/migrations'
+    }]
+  }
 });
