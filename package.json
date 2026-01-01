@@ -63,5 +63,11 @@
     "prettier-plugin-tailwindcss": "^0.6.14",
     "wrangler": "^4.43.0",
     "drizzle-kit": "^0.31.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   }
 }
