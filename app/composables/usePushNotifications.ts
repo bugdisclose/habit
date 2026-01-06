@@ -29,13 +29,20 @@ export function usePushNotifications() {
   // Request permission and subscribe
   async function subscribe() {
     if (!isSupported.value) return { success: false, error: 'Not supported' };
+
+    const vapidKey = config.public.vapidPublicKey;
+    if (!vapidKey) {
+      console.error('VAPID public key not configured');
+      return { success: false, error: 'Push notifications not configured' };
+    }
+
     loading.value = true;
 
     try {
       // Request notification permission
       const perm = await Notification.requestPermission();
       permission.value = perm;
-      
+
       if (perm !== 'granted') {
         loading.value = false;
         return { success: false, error: 'Permission denied' };
@@ -45,13 +52,14 @@ export function usePushNotifications() {
       const registration = await navigator.serviceWorker.ready;
 
       // Subscribe to push
+      const applicationServerKey = urlBase64ToUint8Array(vapidKey);
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(config.public.vapidPublicKey),
+        applicationServerKey,
       });
 
       // Send subscription to server
-      const response = await $fetch('/api/push/subscribe', {
+      await $fetch('/api/push/subscribe', {
         method: 'POST',
         body: subscription.toJSON(),
       });
