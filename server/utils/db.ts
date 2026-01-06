@@ -95,14 +95,59 @@ export function useDB() {
             earned_at integer NOT NULL,
             context text
           );
+          CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+            user_id text NOT NULL,
+            endpoint text NOT NULL UNIQUE,
+            keys text NOT NULL,
+            created_at integer NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS user_settings (
+            id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+            user_id text NOT NULL UNIQUE,
+            calendar_token text,
+            push_enabled integer NOT NULL DEFAULT 0,
+            reminder_time text DEFAULT '09:00',
+            evening_nudge integer NOT NULL DEFAULT 1,
+            evening_nudge_time text DEFAULT '20:00',
+            buddy_alerts integer NOT NULL DEFAULT 1,
+            updated_at integer NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+          CREATE INDEX IF NOT EXISTS idx_user_settings_token ON user_settings(calendar_token);
         `);
         console.log('[db] Schema initialized successfully.');
       } else {
+        // Apply missing tables for existing databases
+        try {
+          sqlite.exec(`
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+              id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+              user_id text NOT NULL,
+              endpoint text NOT NULL UNIQUE,
+              keys text NOT NULL,
+              created_at integer NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS user_settings (
+              id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+              user_id text NOT NULL UNIQUE,
+              calendar_token text,
+              push_enabled integer NOT NULL DEFAULT 0,
+              reminder_time text DEFAULT '09:00',
+              evening_nudge integer NOT NULL DEFAULT 1,
+              evening_nudge_time text DEFAULT '20:00',
+              buddy_alerts integer NOT NULL DEFAULT 1,
+              updated_at integer NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+            CREATE INDEX IF NOT EXISTS idx_user_settings_token ON user_settings(calendar_token);
+          `);
+          console.log('[db] Applied migration: push_subscriptions and user_settings tables.');
+        } catch (e) {
+          // Tables might already exist
+        }
         // Hotfix for existing tables: check if user_view column exists
         try {
-          // We can't easily check columns in sqlite without PRAGMA, but simpler to just try-catch ADD COLUMN
-          // or we can rely on application-level checks. 
-          // For simplicity in this hotfix script:
           sqlite.exec("ALTER TABLE users ADD COLUMN user_view integer DEFAULT 0");
           console.log('[db] Applied hotfix: Added user_view column.');
         } catch (e) {
