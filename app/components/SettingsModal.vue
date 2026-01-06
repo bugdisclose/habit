@@ -111,7 +111,16 @@ async function saveSettings() {
 </script>
 
 <template>
-  <UModal v-model="isOpen" :ui="{ width: 'w-full max-w-sm', rounded: 'rounded-2xl', background: 'bg-neutral-900', container: 'items-start sm:items-center pt-16 sm:pt-0' }">
+  <UModal
+    v-model="isOpen"
+    :ui="{
+      width: 'w-full max-w-sm',
+      rounded: 'rounded-2xl',
+      background: 'bg-neutral-900',
+      container: 'items-center px-4',
+      overlay: { background: 'bg-black/60 backdrop-blur-sm' }
+    }"
+  >
     <div class="p-4 flex flex-col gap-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-semibold text-white">Reminders</h2>

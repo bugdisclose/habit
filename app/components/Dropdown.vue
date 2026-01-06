@@ -51,7 +51,7 @@ const isDarkMode = computed({
   </UPopover>
   <UModal
     v-model="openEditProfile"
-    :ui="{ container: 'items-center', width: 'w-96', background: '', shadow: '', overlay: { base: 'backdrop-blur-2xl', background: 'bg-white/5 dark:bg-black/60' } }">
+    :ui="{ container: 'items-center px-4', width: 'w-full max-w-sm', background: '', shadow: '', overlay: { base: 'backdrop-blur-2xl', background: 'bg-white/5 dark:bg-black/60' } }">
     <ProfileForm :user="user" />
   </UModal>
   <SettingsModal v-model="openSettings" />
