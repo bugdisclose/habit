@@ -111,16 +111,7 @@ async function saveSettings() {
 </script>
 
 <template>
-  <UModal
-    v-model="isOpen"
-    :ui="{
-      width: 'w-full max-w-sm',
-      rounded: 'rounded-2xl',
-      background: 'bg-neutral-900',
-      container: 'items-center px-4',
-      overlay: { background: 'bg-black/60 backdrop-blur-sm' }
-    }"
-  >
+  <UModal v-model="isOpen" :ui="{ width: 'w-full max-w-sm', rounded: 'rounded-2xl', background: 'bg-neutral-900' }">
     <div class="p-4 flex flex-col gap-4">
       <div class="flex items-center justify-between">
         <h2 class="text-base font-semibold text-white">Reminders</h2>
@@ -129,7 +120,46 @@ async function saveSettings() {
         </button>
       </div>
 
-      <!-- Push Notifications Section (moved to top for keyboard accessibility) -->
+      <!-- Calendar Section -->
+      <div class="space-y-2">
+        <div class="flex items-center gap-2 text-white text-sm">
+          <UIcon name="i-heroicons-calendar" class="w-4 h-4 text-primary-500" />
+          <span class="font-medium">Calendar Widget</span>
+        </div>
+        <p class="text-xs text-white/50">
+          Add habits to iPhone Calendar widget
+        </p>
+
+        <div v-if="!calendarUrl">
+          <button
+            @click="generateCalendar"
+            :disabled="calendarLoading"
+            class="w-full bg-white/10 hover:bg-white/15 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2"
+          >
+            <UIcon v-if="calendarLoading" name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" />
+            <span>{{ calendarLoading ? 'Generating...' : 'Generate Link' }}</span>
+          </button>
+        </div>
+
+        <div v-else class="flex gap-2">
+          <button
+            @click="subscribeToCalendar"
+            class="flex-1 bg-primary-600 hover:bg-primary-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition"
+          >
+            Add to Calendar
+          </button>
+          <button
+            @click="copyCalendarUrl"
+            class="bg-white/10 hover:bg-white/15 text-white px-3 py-2 rounded-lg text-sm transition"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-white/10" />
+
+      <!-- Push Notifications Section -->
       <div class="space-y-2">
         <div class="flex items-center gap-2 text-white text-sm">
           <UIcon name="i-heroicons-bell" class="w-4 h-4 text-primary-500" />
@@ -184,45 +214,6 @@ async function saveSettings() {
             <li>Open from Home Screen</li>
             <li>Return here to enable</li>
           </ol>
-        </div>
-      </div>
-
-      <div class="border-t border-white/10" />
-
-      <!-- Calendar Section -->
-      <div class="space-y-2">
-        <div class="flex items-center gap-2 text-white text-sm">
-          <UIcon name="i-heroicons-calendar" class="w-4 h-4 text-primary-500" />
-          <span class="font-medium">Calendar Widget</span>
-        </div>
-        <p class="text-xs text-white/50">
-          Add habits to iPhone Calendar widget
-        </p>
-
-        <div v-if="!calendarUrl">
-          <button
-            @click="generateCalendar"
-            :disabled="calendarLoading"
-            class="w-full bg-white/10 hover:bg-white/15 text-white px-3 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2"
-          >
-            <UIcon v-if="calendarLoading" name="i-heroicons-arrow-path" class="w-4 h-4 animate-spin" />
-            <span>{{ calendarLoading ? 'Generating...' : 'Generate Link' }}</span>
-          </button>
-        </div>
-
-        <div v-else class="flex gap-2">
-          <button
-            @click="subscribeToCalendar"
-            class="flex-1 bg-primary-600 hover:bg-primary-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition"
-          >
-            Add to Calendar
-          </button>
-          <button
-            @click="copyCalendarUrl"
-            class="bg-white/10 hover:bg-white/15 text-white px-3 py-2 rounded-lg text-sm transition"
-          >
-            Copy
-          </button>
         </div>
       </div>
     </div>

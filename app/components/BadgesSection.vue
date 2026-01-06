@@ -38,36 +38,61 @@ const recentBadges = computed(() => earnedBadges.value.slice(0, 5)); // Show 5 t
 </script>
 
 <template>
-  <!-- Subtle inline badges row - only show if badges exist -->
-  <div v-if="earnedBadges.length > 0" class="flex items-center gap-1 flex-wrap mt-1">
-    <!-- Earned badges -->
-    <span
-      v-for="badge in recentBadges"
-      :key="badge.id"
-      class="text-xs cursor-default"
-      :title="badge.description"
-    >{{ badge.icon }}</span>
+  <!-- Subtle inline badges row -->
+  <div v-if="earnedBadges.length > 0 || isMyProfile" class="flex items-center gap-2">
+    <!-- Badge icons row -->
+    <div class="flex items-center gap-1">
+      <template v-if="earnedBadges.length > 0 || nextBadgeToUnlock">
+        <!-- Earned badges -->
+        <UTooltip
+          v-for="badge in recentBadges"
+          :key="badge.id"
+          :text="badge.description"
+          :arrow="true"
+        >
+          <span
+            class="text-sm opacity-70 hover:opacity-100 transition cursor-default"
+          >{{ badge.icon }}</span>
+        </UTooltip>
 
-    <!-- More badges indicator -->
-    <button
-      v-if="earnedBadges.length > 5"
-      @click="expanded = !expanded"
-      class="text-[10px] text-white/40 hover:text-white/60 transition"
-    >
-      +{{ earnedBadges.length - 5 }}
-    </button>
+        <!-- Next badge to unlock (only show on own profile) -->
+        <UTooltip
+          v-if="isMyProfile && nextBadgeToUnlock"
+          :text="`Next: ${nextBadgeToUnlock.description}`"
+          :arrow="true"
+        >
+          <span
+            class="text-sm opacity-30 hover:opacity-50 transition cursor-default grayscale"
+          >{{ nextBadgeToUnlock.icon }}</span>
+        </UTooltip>
+
+        <button
+          v-if="earnedBadges.length > 5"
+          @click="expanded = !expanded"
+          class="text-[10px] text-white/40 hover:text-white/60 transition ml-1"
+        >
+          +{{ earnedBadges.length - 5 }}
+        </button>
+      </template>
+      <span v-else-if="isMyProfile" class="text-xs text-white/30 italic">No badges yet</span>
+    </div>
+
+    <!-- Stats (subtle) -->
+    <div v-if="badgesData?.stats && badgesData.stats.earned > 0" class="flex items-center gap-1.5 text-[10px] text-white/30">
+      <span>{{ badgesData.stats.earned }}/{{ badgesData.stats.total }}</span>
+    </div>
   </div>
 
-  <!-- Expanded view -->
+  <!-- Expanded view (modal-like dropdown) -->
   <Teleport to="body">
     <Transition name="fade">
       <div
         v-if="expanded"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
         @click="expanded = false"
       >
         <div
-          class="max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-neutral-900 p-4 shadow-2xl"
+          class="mx-4 max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-neutral-900 p-4 shadow-2xl"
           @click.stop
         >
           <div class="mb-3 flex items-center justify-between">
@@ -77,15 +102,19 @@ const recentBadges = computed(() => earnedBadges.value.slice(0, 5)); // Show 5 t
             </button>
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <div
+            <UTooltip
               v-for="badge in earnedBadges"
               :key="badge.id"
-              class="flex flex-col items-center gap-1 rounded-lg bg-white/5 p-2 text-center"
-              :title="badge.description"
+              :text="badge.description"
+              :arrow="true"
             >
-              <span class="text-lg">{{ badge.icon }}</span>
-              <span class="text-[9px] text-white/50 leading-tight">{{ badge.name }}</span>
-            </div>
+              <div
+                class="flex flex-col items-center gap-1 rounded-lg bg-white/5 p-2 text-center cursor-default"
+              >
+                <span class="text-lg">{{ badge.icon }}</span>
+                <span class="text-[9px] text-white/50 leading-tight">{{ badge.name }}</span>
+              </div>
+            </UTooltip>
           </div>
         </div>
       </div>
