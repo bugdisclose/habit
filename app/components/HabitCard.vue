@@ -93,6 +93,9 @@ const cancelEdit = () => {
 
 const isTodayCompleted = (habit: Habit) => habit.completeDays.some(day => isSameDay(parseISO(day), new Date()));
 
+// Badge unlock state
+const unlockedBadge = ref<any>(null);
+
 const { mutate: toggleTodayCompletion } = useMutation({
   mutation: (habit: Habit) => {
     const isCompletedToday = habit.completeDays.some(day => isSameDay(parseISO(day), new Date()));
@@ -101,7 +104,7 @@ const { mutate: toggleTodayCompletion } = useMutation({
       ? habit.completeDays.filter(day => !isSameDay(parseISO(day), new Date()))
       : [...habit.completeDays, format(new Date(), 'yyyy-MM-dd')];
 
-    return $fetch(`/api/habits/${habit.id}`, {
+    return $fetch<any>(`/api/habits/${habit.id}`, {
       method: 'PATCH',
       body: {
         completeDays: updatedCompleteDays,
@@ -109,10 +112,16 @@ const { mutate: toggleTodayCompletion } = useMutation({
     });
   },
 
-  async onSuccess(habit) {
+  async onSuccess(response) {
     await queryCache.invalidateQueries({ active: true });
-    if (habit.completeDays.some(day => isSameDay(parseISO(day), new Date()))) {
+    if (response.completeDays.some((day: string) => isSameDay(parseISO(day), new Date()))) {
       startConfettiAnimation();
+
+      // Check for newly earned badges
+      if (response.newBadges && response.newBadges.length > 0) {
+        // Show the first badge (could queue multiple)
+        unlockedBadge.value = response.newBadges[0];
+      }
     }
   },
 });
@@ -167,107 +176,120 @@ const confirmCompletion = async (withNote: boolean) => {
 
 <template>
   <div>
-    <ContentBox class="mx-4 mb-4 flex cursor-pointer gap-3 bg-neutral-400/5 p-3 transition hover:bg-white/5 active:scale-[.975]" @click="openHabitModal = true">
-    <div class="flex flex-1 flex-col justify-center gap-1">
-      <div class="flex items-center justify-between">
-        <div class="text-md line-clamp-1 font-medium text-white">{{ habit.title }}</div>
-        
-        <!-- Individual Streak -->
-        <div v-if="currentStreak > 0 && !buddyInfo" class="flex items-center gap-1 text-orange-400" title="Current Streak">
-            <UIcon name="i-heroicons-fire-20-solid" class="w-4 h-4 animate-pulse" />
-            <span class="text-xs font-bold">{{ currentStreak }}</span>
+    <ContentBox class="mx-3 sm:mx-4 mb-3 sm:mb-4 flex cursor-pointer flex-col gap-2 sm:gap-3 bg-neutral-400/5 p-2.5 sm:p-3 transition hover:bg-white/5 active:scale-[.975]" @click="openHabitModal = true">
+    <!-- Title and Streak Row -->
+    <div class="flex items-start justify-between gap-2 sm:gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <div class="text-sm sm:text-base font-semibold text-white truncate">{{ habit.title }}</div>
+          <!-- Individual Streak -->
+          <div v-if="currentStreak > 0 && !buddyInfo" class="flex items-center gap-1 text-orange-400 shrink-0" title="Current Streak">
+              <UIcon name="i-heroicons-fire-20-solid" class="w-4 h-4 animate-pulse" />
+              <span class="text-xs font-bold">{{ currentStreak }}</span>
+          </div>
+        </div>
+        <!-- Description -->
+        <div v-if="isMyProfile || !permissions || permissions.journal" class="mt-1 line-clamp-2 text-xs sm:text-sm text-white/60 leading-relaxed" v-html="renderMarkdown(habit.description || '')"></div>
+        <div v-else class="flex items-center gap-1.5 py-1 text-xs text-white/40 italic">
+          <UIcon name="i-heroicons-lock-closed-16-solid" class="w-3 h-3" />
+          Journal is private
         </div>
       </div>
-      <div v-if="isMyProfile || !permissions || permissions.journal" class="line-clamp-3 text-xs text-white/70" v-html="renderMarkdown(habit.description || '')"></div>
-      <div v-else class="flex items-center gap-1.5 py-1 text-xs text-white/40 italic">
-        <UIcon name="i-heroicons-lock-closed-16-solid" class="w-3 h-3" />
-        Journal is private
-      </div>
-      
-      <!-- Shared Badge -->
-      <div v-if="buddyInfo" class="mt-2 inline-flex items-center gap-2 rounded-full bg-white/5 pr-3 pl-1 py-0.5 text-xs font-medium border border-white/5">
-         
-         <!-- Mutual Streak -->
-         <div v-if="sharedStreak > 0" class="flex items-center gap-1 text-orange-400 border-r border-white/10 pr-2 mr-1">
-             <UIcon name="i-heroicons-fire-20-solid" class="w-3.5 h-3.5" />
-             <span class="font-bold">{{ sharedStreak }}</span>
-         </div>
-         
-         <!-- User Status -->
-         <div class="flex items-center gap-1.5">
-             <div class="flex items-center justify-center p-0.5 rounded-full" :class="isBuddyCompleted ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/50'">
-                <UIcon name="i-heroicons-users-20-solid" class="w-3 h-3" />
-             </div>
-             <span :class="isBuddyCompleted ? 'text-green-400' : 'text-white/60'">
-                {{ buddyInfo.name }}
-             </span>
-         </div>
-      </div>
 
-       <!-- Observer Reactions -->
-      <div v-if="isObserver" class="mt-3 flex gap-2">
-         <button 
-           v-for="emoji in reactions" 
-           :key="emoji"
-           @click.stop="sendReaction(emoji)"
-           class="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/20 hover:scale-110 active:scale-95 transition-all duration-200 text-lg shadow-sm"
-           title="Send Reaction"
-         >
-           {{ emoji }}
-         </button>
+      <!-- Compact Heatmap (right side) -->
+      <div class="shrink-0">
+        <HabitHeatmap :habit="habit" :habitDays="35" />
       </div>
     </div>
-    <HabitHeatmap :habit="habit" :habitDays="49" />
+
+    <!-- Shared Badge -->
+    <div v-if="buddyInfo" class="inline-flex items-center gap-2 rounded-full bg-white/5 pr-3 pl-1 py-0.5 text-xs font-medium border border-white/5 self-start">
+
+       <!-- Mutual Streak -->
+       <div v-if="sharedStreak > 0" class="flex items-center gap-1 text-orange-400 border-r border-white/10 pr-2 mr-1">
+           <UIcon name="i-heroicons-fire-20-solid" class="w-3.5 h-3.5" />
+           <span class="font-bold">{{ sharedStreak }}</span>
+       </div>
+
+       <!-- User Status -->
+       <div class="flex items-center gap-1.5">
+           <div class="flex items-center justify-center p-0.5 rounded-full" :class="isBuddyCompleted ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/50'">
+              <UIcon name="i-heroicons-users-20-solid" class="w-3 h-3" />
+           </div>
+           <span :class="isBuddyCompleted ? 'text-green-400' : 'text-white/60'">
+              {{ buddyInfo.name }}
+           </span>
+       </div>
+    </div>
+
+     <!-- Observer Reactions -->
+    <div v-if="isObserver" class="flex gap-2">
+       <button
+         v-for="emoji in reactions"
+         :key="emoji"
+         @click.stop="sendReaction(emoji)"
+         class="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/20 hover:scale-110 active:scale-95 transition-all duration-200 text-lg shadow-sm"
+         title="Send Reaction"
+       >
+         {{ emoji }}
+       </button>
+    </div>
   </ContentBox>
   <UModal
     v-model="openHabitModal"
-    :ui="{ container: 'items-center', background: '', shadow: '', overlay: { base: 'backdrop-blur-2xl', background: 'bg-white/5 dark:bg-black/60' } }">
-    <div class="flex flex-col gap-4">
-      <ContentBox class="flex flex-col gap-2.5 bg-white/10 p-2.5 dark:bg-neutral-400/5">
-        <div class="flex w-full items-center justify-between gap-2.5 px-0.5 text-white/25 dark:text-white/15">
-          <div class="text-xs">
-            Completion Rate:
+    :ui="{ container: 'items-center px-4 sm:px-0', width: 'w-full max-w-sm sm:max-w-md', background: '', shadow: '', overlay: { base: 'backdrop-blur-2xl', background: 'bg-white/5 dark:bg-black/60' } }">
+    <div class="flex flex-col gap-3 sm:gap-4">
+      <ContentBox class="flex flex-col gap-2.5 bg-white/10 p-2 sm:p-2.5 dark:bg-neutral-400/5">
+        <!-- Stats Row - Stack on mobile -->
+        <div class="flex flex-wrap w-full items-center justify-between gap-2 px-0.5 text-white/25 dark:text-white/15">
+          <div class="text-[10px] sm:text-xs">
+            Completion:
             <strong>{{ getCompletionRate(habit) }}%</strong>
           </div>
           <UProgress
             :value="getCompletionRate(habit)"
             size="xs"
+            class="hidden sm:block"
             :ui="{
-              wrapper: 'flex-1',
+              wrapper: 'flex-1 min-w-[60px]',
               progress: {
                 color: 'text-white/25 dark:text-white/15',
                 track:
                   '[&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-bar]:dark:bg-white/5 [@supports(selector(&::-moz-progress-bar))]:bg-white/10 [@supports(selector(&::-moz-progress-bar))]:dark:bg-white/5',
               },
             }" />
-          <div class="text-xs">
+          <div class="text-[10px] sm:text-xs">
             Today:
             <strong>
-              {{ isTodayCompleted(habit) ? 'Completed' : 'Pending' }}
+              {{ isTodayCompleted(habit) ? 'Done' : 'Pending' }}
             </strong>
           </div>
           <!-- Detailed Buddy Status in Modal -->
-          <div v-if="buddyInfo" class="ml-2 pl-2 border-l border-white/10 flex items-center gap-1 text-xs">
-             <UIcon name="i-heroicons-user-group-20-solid" class="w-3.5 h-3.5" />
+          <div v-if="buddyInfo" class="w-full sm:w-auto sm:ml-2 sm:pl-2 sm:border-l border-white/10 flex items-center gap-1 text-[10px] sm:text-xs pt-1 sm:pt-0">
+             <UIcon name="i-heroicons-user-group-20-solid" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
              <span class="text-white/50">{{ buddyInfo.name }}:</span>
              <strong :class="isBuddyCompleted ? 'text-green-400' : 'text-orange-400'">
-                {{ isBuddyCompleted ? 'Completed' : 'Waiting' }}
+                {{ isBuddyCompleted ? 'Done' : 'Waiting' }}
              </strong>
           </div>
         </div>
-        <HabitHeatmap :habit="habit" :habitDays="343" />
+        <!-- Heatmap with horizontal scroll on mobile -->
+        <div class="overflow-x-auto -mx-1 px-1">
+          <HabitHeatmap :habit="habit" :habitDays="343" />
+        </div>
       </ContentBox>
-      <div class="flex flex-col gap-4 px-3 text-white">
-        <div class="flex items-center justify-between gap-3">
+      <div class="flex flex-col gap-3 sm:gap-4 px-2 sm:px-3 text-white">
+        <div class="flex items-center justify-between gap-2 sm:gap-3">
           <UInput v-if="editingHabit === habit.id" :ui="{ wrapper: 'flex-1', rounded: 'rounded-full', size: { sm: 'text-sm font-semibold' } }" v-model="edit.title" />
-          <div v-else class="line-clamp-1 text-xl font-semibold">{{ habit.title }}</div>
-          <div v-if="isMyProfile" class="flex items-center gap-3">
+          <div v-else class="line-clamp-1 text-base sm:text-xl font-semibold flex-1 min-w-0">{{ habit.title }}</div>
+          <div v-if="isMyProfile" class="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               @click="handleToggle(habit)"
-              class="button px-2.5 py-1.5 font-semibold outline-none"
+              class="button px-2 sm:px-2.5 py-1.5 font-semibold outline-none text-sm"
               :class="isTodayCompleted(habit) ? 'bg-white/10 hover:bg-white/25' : 'bg-green-500 hover:bg-green-400 dark:bg-green-400 dark:text-green-950 dark:hover:bg-green-300'">
-              <UIcon v-if="!isTodayCompleted(habit)" name="i-heroicons-check-16-solid" class="h-5 w-5" />
-              {{ isTodayCompleted(habit) ? 'Undo' : 'Complete' }}
+              <UIcon v-if="!isTodayCompleted(habit)" name="i-heroicons-check-16-solid" class="h-4 w-4 sm:h-5 sm:w-5" />
+              <span class="hidden sm:inline">{{ isTodayCompleted(habit) ? 'Undo' : 'Complete' }}</span>
+              <span class="sm:hidden">{{ isTodayCompleted(habit) ? 'Undo' : 'Done' }}</span>
             </button>
 
             <UPopover :popper="{ placement: 'bottom-end' }" :ui="{ background: '', shadow: '', ring: '' }">
@@ -349,7 +371,7 @@ const confirmCompletion = async (withNote: boolean) => {
         </div>
       </div>
     </div>
-    <UModal v-model="confirmDeleteHabit" :ui="{ width: 'w-80', rounded: 'rounded-2xl' }">
+    <UModal v-model="confirmDeleteHabit" :ui="{ container: 'px-4 sm:px-0', width: 'w-full max-w-xs sm:w-80', rounded: 'rounded-2xl' }">
       <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
         <template #header>
           <div class="flex items-center justify-between">
@@ -373,8 +395,8 @@ const confirmCompletion = async (withNote: boolean) => {
     </UModal>
   </UModal>
 
-  <UModal v-model="openJournalModal" :ui="{ width: 'w-full max-w-sm', rounded: 'rounded-2xl', background: 'bg-neutral-900', overlay: { background: 'backdrop-blur-sm bg-black/50' } }">
-    <div class="p-5 flex flex-col gap-4">
+  <UModal v-model="openJournalModal" :ui="{ container: 'px-4 sm:px-0', width: 'w-full max-w-xs sm:max-w-sm', rounded: 'rounded-2xl', background: 'bg-neutral-900', overlay: { background: 'backdrop-blur-sm bg-black/50' } }">
+    <div class="p-4 sm:p-5 flex flex-col gap-3 sm:gap-4">
       <div class="flex flex-col gap-1">
          <h3 class="text-lg font-semibold text-white">How did it go? ✍️</h3>
          <p class="text-sm text-white/50">Add a quick note about your progress today.</p>
@@ -392,5 +414,12 @@ const confirmCompletion = async (withNote: boolean) => {
       </div>
     </div>
   </UModal>
+
+  <!-- Badge Unlock Modal -->
+  <BadgeUnlockModal
+    v-if="unlockedBadge"
+    :badge="unlockedBadge"
+    @close="unlockedBadge = null"
+  />
   </div>
 </template>

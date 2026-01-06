@@ -1,4 +1,5 @@
 import { useValidatedBody, z } from 'h3-zod';
+import { checkAndAwardBadges } from '../../utils/badges';
 
 export default eventHandler(async event => {
   const { title, description, habitView } = await useValidatedBody(event, {
@@ -8,11 +9,12 @@ export default eventHandler(async event => {
   });
 
   const { user } = await requireUserSession(event);
+  const userId = String(user.id);
 
   const habit = await useDB()
     .insert(tables.habits)
     .values({
-      userId: String(user.id),
+      userId,
       title,
       description,
       createdAt: new Date(),
@@ -21,5 +23,11 @@ export default eventHandler(async event => {
     .returning()
     .get();
 
-  return habit;
+  // Check for badges (e.g., "Triple Threat" for 3 habits)
+  const newBadges = await checkAndAwardBadges({ userId });
+
+  return {
+    ...habit,
+    newBadges,
+  };
 });

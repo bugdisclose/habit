@@ -3,6 +3,7 @@ import { z } from 'zod';
 export default eventHandler(async (event) => {
     const { id } = getRouterParams(event);
     const { user } = await requireUserSession(event);
+    const userId = String(user.id);
 
     const { targetUsername, mode, permissions } = await readValidatedBody(event, z.object({
         targetUsername: z.string(),

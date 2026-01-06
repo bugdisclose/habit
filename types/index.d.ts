@@ -22,3 +22,12 @@ interface Day {
 }
 
 type Week = Day[];
+
+interface DayInfo {
+  date: string;
+  isPast: boolean;
+  isFuture: boolean;
+  isToday: boolean;
+}
+
+type WeekInfo = DayInfo[];

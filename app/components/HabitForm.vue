@@ -52,8 +52,8 @@ const habitVisibilityMessage = computed(() => {
 </script>
 
 <template>
-  <div class="p-8">
-    <UForm :schema="schema" :state="formState" class="flex flex-col gap-4" @submit="onSubmit">
+  <div class="p-4 sm:p-8">
+    <UForm :schema="schema" :state="formState" class="flex flex-col gap-3 sm:gap-4" @submit="onSubmit">
       <UFormGroup name="title">
         <div class="input-container">
           <input v-model="formState.title" placeholder="Title..." />
@@ -61,19 +61,19 @@ const habitVisibilityMessage = computed(() => {
       </UFormGroup>
       <UFormGroup name="description">
         <div class="input-container">
-          <textarea class="scroll-bar" rows="5" v-model="formState.description" placeholder="Description (Markdown supported)..."></textarea>
+          <textarea class="scroll-bar" rows="4" v-model="formState.description" placeholder="Description (Markdown supported)..."></textarea>
         </div>
       </UFormGroup>
       <UFormGroup name="habitView">
-        <div class="toggle flex items-center justify-between gap-20">
-          <div class="flex flex-col">
+        <div class="toggle flex items-center justify-between gap-4 sm:gap-20">
+          <div class="flex flex-col flex-1 min-w-0">
             <div class="text-sm font-semibold text-white">Public Habit</div>
             <div class="text-xs text-white/60" v-html="habitVisibilityMessage"></div>
           </div>
-          <UToggle v-model="formState.habitView" />
+          <UToggle v-model="formState.habitView" class="shrink-0" />
         </div>
       </UFormGroup>
-      <button type="submit" class="button bg-green-500 px-2.5 py-3 font-semibold text-black/80 outline-none hover:bg-green-400">Add Habit</button>
+      <button type="submit" class="button bg-green-500 px-2.5 py-2.5 sm:py-3 font-semibold text-black/80 outline-none hover:bg-green-400">Add Habit</button>
     </UForm>
   </div>
 </template>

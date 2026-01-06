@@ -19,6 +19,8 @@ export function useDB() {
     if (!_sqliteSession) {
       console.log(`[db] Initializing database at ${dbPath}`);
       _sqliteSession = new Database(dbPath); // Lazy open
+      // Enable foreign key constraints for data integrity
+      _sqliteSession.pragma('foreign_keys = ON');
     }
 
     const sqlite = _sqliteSession;
@@ -85,6 +87,13 @@ export function useDB() {
             user_id text NOT NULL,
             reaction text NOT NULL,
             created_at integer
+          );
+          CREATE TABLE IF NOT EXISTS user_badges (
+            id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+            user_id text NOT NULL,
+            badge_id text NOT NULL,
+            earned_at integer NOT NULL,
+            context text
           );
         `);
         console.log('[db] Schema initialized successfully.');

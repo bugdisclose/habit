@@ -1,17 +1,24 @@
 import { z } from 'zod';
+import { checkAndAwardBadges } from '../../../utils/badges';
 
 export default eventHandler(async (event) => {
     const { id } = getRouterParams(event);
     const { user } = await requireUserSession(event);
+    const db = useDB();
+    const userId = String(user.id);
+
     const { accept } = await readValidatedBody(event, z.object({
         accept: z.boolean()
     }).parse);
 
-    // 1. Get notification
-    const notification = await useDB()
+    // 1. Get notification and verify ownership
+    const notification = await db
         .select()
         .from(tables.notifications)
-        .where(and(eq(tables.notifications.id, Number(id)), eq(tables.notifications.userId, String(user.id))))
+        .where(and(
+            eq(tables.notifications.id, Number(id)),
+            eq(tables.notifications.userId, userId)
+        ))
         .get();
 
     if (!notification) {
@@ -22,20 +29,46 @@ export default eventHandler(async (event) => {
     if (notification.type === 'share_invite') {
         const { habitId, mode } = notification.data;
 
-        // Find the share record
-        const shareRecord = await useDB()
+        // Verify the original habit still exists
+        const originalHabit = await db
+            .select()
+            .from(tables.habits)
+            .where(eq(tables.habits.id, habitId))
+            .get();
+
+        if (!originalHabit) {
+            // Habit was deleted, clean up the share record and notification
+            await db
+                .delete(tables.habitShares)
+                .where(and(
+                    eq(tables.habitShares.habitId, habitId),
+                    eq(tables.habitShares.sharedWithId, userId)
+                ));
+            await db
+                .delete(tables.notifications)
+                .where(eq(tables.notifications.id, Number(id)));
+
+            return { message: 'The shared habit no longer exists' };
+        }
+
+        // Find the share record - must match habitId, sharedWithId, AND userId (owner)
+        const shareRecord = await db
             .select()
             .from(tables.habitShares)
             .where(and(
                 eq(tables.habitShares.habitId, habitId),
-                eq(tables.habitShares.sharedWithId, String(user.id)),
+                eq(tables.habitShares.sharedWithId, userId),
+                eq(tables.habitShares.userId, originalHabit.userId), // Verify the share is from the actual owner
                 eq(tables.habitShares.status, 'pending')
             ))
             .get();
 
         if (!shareRecord) {
-            // Maybe already handled?
-            await useDB().update(tables.notifications).set({ read: true }).where(eq(tables.notifications.id, Number(id)));
+            // Share record doesn't exist or already handled
+            await db
+                .update(tables.notifications)
+                .set({ read: true })
+                .where(eq(tables.notifications.id, Number(id)));
             return { message: 'Invite no longer valid' };
         }
 
@@ -44,45 +77,40 @@ export default eventHandler(async (event) => {
 
             // If Buddy Mode, clone the habit
             if (mode === 'buddy') {
-                const originalHabit = await useDB()
-                    .select()
-                    .from(tables.habits)
-                    .where(eq(tables.habits.id, habitId))
+                const newHabit = await db
+                    .insert(tables.habits)
+                    .values({
+                        userId: userId,
+                        title: originalHabit.title,
+                        description: originalHabit.description,
+                        habitView: false, // Private by default
+                        createdAt: new Date(),
+                    })
+                    .returning()
                     .get();
-
-                if (originalHabit) {
-                    const newHabit = await useDB()
-                        .insert(tables.habits)
-                        .values({
-                            userId: String(user.id),
-                            title: originalHabit.title,
-                            description: originalHabit.description,
-                            habitView: false, // Private by default
-                            createdAt: new Date(),
-                        })
-                        .returning()
-                        .get();
-                    buddyHabitId = newHabit.id;
-                }
+                buddyHabitId = newHabit.id;
             }
 
             // Update Share Record
-            await useDB()
+            await db
                 .update(tables.habitShares)
                 .set({ status: 'accepted', buddyHabitId })
                 .where(eq(tables.habitShares.id, shareRecord.id));
 
+            // Check badges for both users - the sharer gets the "first_share" badge
+            await checkAndAwardBadges({ userId: shareRecord.userId }); // Sharer
+            await checkAndAwardBadges({ userId }); // Acceptor
+
         } else {
-            // Rejected
-            await useDB()
-                .update(tables.habitShares)
-                .set({ status: 'rejected' })
+            // Rejected - delete the share record entirely
+            await db
+                .delete(tables.habitShares)
                 .where(eq(tables.habitShares.id, shareRecord.id));
         }
     }
 
     // 3. Mark notification as read
-    await useDB()
+    await db
         .update(tables.notifications)
         .set({ read: true })
         .where(eq(tables.notifications.id, Number(id)));

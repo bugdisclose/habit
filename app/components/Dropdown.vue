@@ -2,6 +2,7 @@
 defineProps<{ user: User }>();
 const { clear } = useUserSession();
 const openEditProfile = ref(false);
+const openSettings = ref(false);
 const colorMode = useColorMode();
 
 const isDarkMode = computed({
@@ -32,6 +33,10 @@ const isDarkMode = computed({
           </div>
         </div>
         <div class="border-b border-white/10"></div>
+        <div @click="() => { close(); openSettings = true; }" class="m-1 flex cursor-pointer items-center gap-3 rounded-lg p-2 transition hover:bg-black/30">
+          <UIcon name="i-heroicons-bell" class="h-5 w-5" />
+          <span>Reminders</span>
+        </div>
         <div @click="isDarkMode = !isDarkMode" class="m-1 flex cursor-pointer items-center gap-3 rounded-lg p-2 transition hover:bg-black/30">
           <UIcon :name="colorMode.preference === 'dark' || colorMode.preference === 'system' ? 'i-heroicons-moon' : 'i-heroicons-sun'" class="h-5 w-5" />
           <span>Dark mode</span>
@@ -49,6 +54,7 @@ const isDarkMode = computed({
     :ui="{ container: 'items-center', width: 'w-96', background: '', shadow: '', overlay: { base: 'backdrop-blur-2xl', background: 'bg-white/5 dark:bg-black/60' } }">
     <ProfileForm :user="user" />
   </UModal>
+  <SettingsModal v-model="openSettings" />
 </template>
 
 <style lang="postcss">

@@ -26,8 +26,15 @@ export default defineOAuthGitHubEventHandler({
         .returning()
         .get();
 
-      await setUserSession(event, { user });
-      return sendRedirect(event, `/${user.login}`);
+      await setUserSession(event, {
+        user: {
+          id: String(user.id),
+          login: user.login.toLowerCase(),
+          name: user.name || user.login,
+          avatarUrl: user.avatar_url,
+        }
+      });
+      return sendRedirect(event, `/${user.login.toLowerCase()}`);
     } catch (err: any) {
       console.error('GitHub Login Error:', err);
       return {

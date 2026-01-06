@@ -56,3 +56,36 @@ export const habitJournals = sqliteTable('habit_journals', {
   note: text('note').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
 });
+
+export const userBadges = sqliteTable('user_badges', {
+  id: integer('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  badgeId: text('badge_id').notNull(), // References badge ID from shared/badges.ts
+  earnedAt: integer('earned_at', { mode: 'timestamp' }).notNull(),
+  // Optional: Store context of how badge was earned
+  context: text('context', { mode: 'json' }).$type<{ habitId?: number; streak?: number; count?: number }>(),
+});
+
+// Push notification subscriptions
+export const pushSubscriptions = sqliteTable('push_subscriptions', {
+  id: integer('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  endpoint: text('endpoint').notNull().unique(),
+  keys: text('keys', { mode: 'json' }).$type<{ p256dh: string; auth: string }>().notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+});
+
+// User notification settings
+export const userSettings = sqliteTable('user_settings', {
+  id: integer('id').primaryKey(),
+  userId: text('user_id').notNull().unique(),
+  // Calendar settings
+  calendarToken: text('calendar_token'), // Unique token for calendar URL
+  // Push notification settings
+  pushEnabled: integer('push_enabled', { mode: 'boolean' }).notNull().default(false),
+  reminderTime: text('reminder_time').default('09:00'), // HH:MM format
+  eveningNudge: integer('evening_nudge', { mode: 'boolean' }).notNull().default(true),
+  eveningNudgeTime: text('evening_nudge_time').default('20:00'),
+  buddyAlerts: integer('buddy_alerts', { mode: 'boolean' }).notNull().default(true),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+});
